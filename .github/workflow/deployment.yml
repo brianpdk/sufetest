@@ -1,0 +1,43 @@
+name: Deploy Azure Web App with Bicep
+on:
+  push:
+    branches:
+      - main
+jobs:
+  deploy:
+    name: Deploy Infrastructure and Web App
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Azure Login via OIDC
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Install Bicep CLI
+        run: az bicep install
+      - name: Deploy Resource Group
+        uses: azure/arm-deploy@v2
+        with:
+          scope: subscription
+          region: northeurope
+          template: ./infra/resourcegroup.bicep
+          parameters: ./infra/resourcegroup.parameters.json
+          deploymentName: rg-deployment
+          failOnStdErr: true
+      - name: Deploy Web App
+        uses: azure/arm-deploy@v2
+        with:
+          scope: resourcegroup
+          resourceGroupName: infra
+          template: ./infra/webapp.bicep
+          parameters: |
+            webAppName=MemberCare
+          deploymentName: webapp-deployment
+          failOnStdErr: true
